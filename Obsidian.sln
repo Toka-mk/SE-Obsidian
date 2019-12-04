@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29519.87
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Obsidian", "Obsidian\Obsidian.csproj", "{B5C58871-DCE5-468A-BB79-3EE22868304A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B5C58871-DCE5-468A-BB79-3EE22868304A}.Debug|x64.ActiveCfg = Debug|x64
+		{B5C58871-DCE5-468A-BB79-3EE22868304A}.Debug|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1B301D47-9B0F-491D-9787-1B9D3D91CC0D}
+	EndGlobalSection
+EndGlobal
