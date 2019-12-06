@@ -37,8 +37,6 @@ namespace IngameScript
 		IMyPistonBase solarArmPiston;
 		IMyMotorStator solarArmRotor;
 
-		IMyDoor missileDoor;
-
 		string solarStatus = "down";
 
 		//Drill Assembly
@@ -79,9 +77,9 @@ namespace IngameScript
 				}
 			}
 
-			solarHome["Azimuth"] = MathHelper.ToRadians(-90);
-			solarHome["Elevation 0"] = MathHelper.ToRadians(90);
-			solarHome["Elevation 1"] = MathHelper.ToRadians(0);
+			solarHome["Azimuth"] = ToRad(-90);
+			solarHome["Elevation 0"] = ToRad(90);
+			solarHome["Elevation 1"] = ToRad(0);
 			
 			//Drill Aseembly
 			IMyBlockGroup drillGroup = GridTerminalSystem.GetBlockGroupWithName("[Obsidian] Drill Assembly");
@@ -110,11 +108,6 @@ namespace IngameScript
 		{
 			debug = drillStatus + "\n" + drillRotor1.RotorLock + "\n" + drillRotor2.RotorLock;
 			LCD.GetSurface(0).WriteText(debug);
-
-			if (missileDoor.OpenRatio == 1)
-			{
-				
-			}
 
 			if (tic % 2 == 0) { if (solarStatus != "up" && solarStatus != "down") { SolarToggle(); } }
 			else { if (drillStatus == "raising" || drillStatus == "lowering") { DrillArmToggle(); } }
@@ -274,6 +267,12 @@ namespace IngameScript
 				rotor.LowerLimitRad = targetAngle;
 				rotor.TargetVelocityRPM = -speed;
 			}
+		}
+
+		float ToRad(float deg)
+		{
+			while (deg < 0) { deg += 360; }
+			return deg * (float)Math.PI / 180;
 		}
 
 		//to here
