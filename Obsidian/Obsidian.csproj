@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{B5C58871-DCE5-468A-BB79-3EE22868304A}</ProjectGuid>
+    <ProjectGuid>{AF04CC72-7069-45BA-BA01-12F97569EFC3}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>IngameScript</RootNamespace>
     <AssemblyName>Obsidian</AssemblyName>

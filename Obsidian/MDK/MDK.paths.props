@@ -7,9 +7,9 @@
     -->
     <MDKVersion>1.2.22</MDKVersion>
     <MDKUseGameBinPath>no</MDKUseGameBinPath>
-    <MDKGameBinPath>G:\Steam\SteamApps\common\SpaceEngineers\Bin64</MDKGameBinPath>
-    <MDKInstallPath>c:\users\jack\appdata\local\microsoft\visualstudio\16.0_4b77bfb9\extensions\tpnmhkp0.p3f</MDKInstallPath>
-    <MDKOutputPath>C:\Users\Jack\AppData\Roaming\SpaceEngineers\IngameScripts\local</MDKOutputPath>
+    <MDKGameBinPath>d:\program files (x86)\steam\SteamApps\common\SpaceEngineers\Bin64</MDKGameBinPath>
+    <MDKInstallPath>c:\users\londo\appdata\local\microsoft\visualstudio\16.0_68829d3c\extensions\zj5kowqh.udd</MDKInstallPath>
+    <MDKOutputPath>C:\Users\londo\AppData\Roaming\SpaceEngineers\IngameScripts\local</MDKOutputPath>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System.Collections.Immutable">

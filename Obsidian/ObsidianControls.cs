@@ -58,6 +58,8 @@ namespace IngameScript
 		{
 			Runtime.UpdateFrequency = UpdateFrequency.Update10;
 
+			//laptop test
+
 			//Solar Assembly
 			IMyBlockGroup solarGroup = GridTerminalSystem.GetBlockGroupWithName("[Obsidian] Solar Assembly");
 			solarGroup.GetBlocks(solarBlocks);
@@ -80,7 +82,7 @@ namespace IngameScript
 			solarHome["Azimuth"] = ToRad(-90);
 			solarHome["Elevation 0"] = ToRad(90);
 			solarHome["Elevation 1"] = ToRad(0);
-			
+
 			//Drill Aseembly
 			IMyBlockGroup drillGroup = GridTerminalSystem.GetBlockGroupWithName("[Obsidian] Drill Assembly");
 			drillGroup.GetBlocks(drillBlocks);
@@ -122,7 +124,7 @@ namespace IngameScript
 				else { Echo($"Unknown command {command}"); }
 			}
 		}
-		
+
 		public void DrillArmToggle()
 		{
 			if (drillStatus == "down")
@@ -160,12 +162,12 @@ namespace IngameScript
 				drillRotor2.RotorLock = true;
 			}
 		}
-		
+
 		public void StartDrilling()
 		{
 			foreach (IMyPistonBase piston in drillPistons) { debug += ("\n" + piston.CustomName); }
 		}
-		
+
 		public void SolarToggle()
 		{
 			//retract solar
