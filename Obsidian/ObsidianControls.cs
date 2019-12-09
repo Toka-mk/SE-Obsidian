@@ -56,9 +56,9 @@ namespace IngameScript
 
 		public Program()
 		{
-			Runtime.UpdateFrequency = UpdateFrequency.Update10;
+			//gitignoretest
 
-			//laptop test
+			Runtime.UpdateFrequency = UpdateFrequency.Update10;
 
 			//Solar Assembly
 			IMyBlockGroup solarGroup = GridTerminalSystem.GetBlockGroupWithName("[Obsidian] Solar Assembly");
