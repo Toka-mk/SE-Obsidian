@@ -29,34 +29,37 @@ namespace IngameScript
 
 		//Solar Assembly
 		List<IMyTerminalBlock> solarBlocks = new List<IMyTerminalBlock>();
-		List<IMyTerminalBlock> solarPistons = new List<IMyTerminalBlock>();
-		List<IMyTerminalBlock> solarRotors = new List<IMyTerminalBlock>();
+		List<IMyPistonBase> solarPistons = new List<IMyPistonBase>();
+		List<IMyMotorStator> solarRotors = new List<IMyMotorStator>();
 		Dictionary<string, float> solarHome = new Dictionary<string, float>();
 
 		IMyProgrammableBlock solarProgram;
 		IMyPistonBase solarArmPiston;
 		IMyMotorStator solarArmRotor;
 
-		string solarStatus = "down";
+		bool solarMoving = false;
+		bool solarRaising = false;
 
 		//Drill Assembly
 		List<IMyTerminalBlock> drillBlocks = new List<IMyTerminalBlock>();
-		List<IMyTerminalBlock> drillPistons = new List<IMyTerminalBlock>();
-		List<IMyTerminalBlock> drills = new List<IMyTerminalBlock>();
+		List<IMyPistonBase> drillPistons = new List<IMyPistonBase>();
+		List<IMyShipDrill> drills = new List<IMyShipDrill>();
 
 		IMyMotorStator drillRotor1;
 		IMyMotorStator drillRotor2;
 
-		string drillStatus = "down";
+		bool drillMoving = false;
+		bool drillRaising = false;
 
 		//Misc
+		bool sleep = true;
+
 		int tic = 0;
 		IMyTextSurfaceProvider LCD;
 		string debug = "";
 
 		public Program()
 		{
-			//git sync test
 
 			Runtime.UpdateFrequency = UpdateFrequency.Update10;
 
@@ -74,8 +77,8 @@ namespace IngameScript
 
 				if (!block.CustomName.Contains("Arm"))
 				{
-					if (block is IMyPistonBase) { solarPistons.Add(block); }
-					else if (block is IMyMotorStator) { solarRotors.Add(block); }
+					if (block is IMyPistonBase) { solarPistons.Add(block as IMyPistonBase); }
+					else if (block is IMyMotorStator) { solarRotors.Add(block as IMyMotorStator); }
 				}
 			}
 
@@ -91,8 +94,8 @@ namespace IngameScript
 			{
 				var block = drillBlocks[i] as IMyTerminalBlock;
 
-				if (block is IMyPistonBase) { drillPistons.Add(block); }
-				else if (block is IMyShipDrill) { drills.Add(block); }
+				if (block is IMyPistonBase) { drillPistons.Add(block as IMyPistonBase); }
+				else if (block is IMyShipDrill) { drills.Add(block as IMyShipDrill); }
 				else if (block.CustomName.Contains("Drill Rotor 1")) { drillRotor1 = block as IMyMotorStator; }
 				else if (block.CustomName.Contains("Drill Rotor 2")) { drillRotor2 = block as IMyMotorStator; }
 			}
@@ -108,11 +111,11 @@ namespace IngameScript
 
 		public void Main(string argument, UpdateType updateSource)
 		{
-			debug = drillStatus + "\n" + drillRotor1.RotorLock + "\n" + drillRotor2.RotorLock;
+			debug = (sleep ? "sleeping" : (solarRaising ? "Solar Raising" : "Solar Lowering"));
 			LCD.GetSurface(0).WriteText(debug);
 
-			if (tic % 2 == 0) { if (solarStatus != "up" && solarStatus != "down") { SolarToggle(); } }
-			else { if (drillStatus == "raising" || drillStatus == "lowering") { DrillArmToggle(); } }
+			if (tic % 3 == 0) { if (solarMoving) { SolarToggle(); } }
+			else { if (drillMoving) { DrillArmToggle(); } }
 
 			if (_commandLine.TryParse(argument))
 			{
@@ -127,9 +130,20 @@ namespace IngameScript
 
 		public void DrillArmToggle()
 		{
-			if (drillStatus == "down")
+			if (!drillMoving)
 			{
-				drillStatus = "raising";
+				drillMoving = true;
+
+				if (drillRaising) {
+					
+				}
+			}
+
+		/*
+			if (!drillMoving && !drillRaising)
+			{
+				drillMoving = true;
+				drillRaising = true;
 				drillRotor1.RotorLock = false;
 				drillRotor1.SetValue<bool>("ShareInertiaTensor", false);
 				drillRotor1.TargetVelocityRPM = -1;
@@ -161,6 +175,7 @@ namespace IngameScript
 				drillRotor1.SetValue<bool>("ShareInertiaTensor", true);
 				drillRotor2.RotorLock = true;
 			}
+		*/
 		}
 
 		public void StartDrilling()
@@ -170,7 +185,9 @@ namespace IngameScript
 
 		public void SolarToggle()
 		{
-			//retract solar
+		
+		
+		/*/retract solar
 			if (solarStatus == "up")
 			{
 				solarStatus = "retracting panels";
@@ -213,6 +230,7 @@ namespace IngameScript
 				solarStatus = "up";
 				PanelExtend();
 			}
+		*/
 		}
 
 		bool RotorMoving(IMyMotorStator rotor)
