@@ -56,7 +56,7 @@ namespace IngameScript
 
 		public Program()
 		{
-			//gitignoretest
+			//git sync test
 
 			Runtime.UpdateFrequency = UpdateFrequency.Update10;
 
