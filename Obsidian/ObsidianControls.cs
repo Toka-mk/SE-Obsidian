@@ -30,8 +30,7 @@ namespace IngameScript
 		//Solar Assembly
 		List<IMyTerminalBlock> solarBlocks = new List<IMyTerminalBlock>();
 		List<IMyPistonBase> solarPistons = new List<IMyPistonBase>();
-		List<IMyMotorStator> solarRotors = new List<IMyMotorStator>();
-		Dictionary<string, float> solarHome = new Dictionary<string, float>();
+		Dictionary<IMyMotorStator, float> solarRotors = new Dictionary<IMyMotorStator, float>();
 
 		IMyProgrammableBlock solarProgram;
 		IMyPistonBase solarArmPiston;
@@ -71,6 +70,12 @@ namespace IngameScript
 			solarArmPiston = GridTerminalSystem.GetBlockWithName("Solar Arm Piston") as IMyPistonBase;
 			solarArmRotor = GridTerminalSystem.GetBlockWithName("Solar Arm Rotor") as IMyMotorStator;
 
+			Dictionary<String, float> solarHome = new Dictionary<String, float>() {
+				{"Azimuth", ToRad(-90) },
+				{"Elevation 0", ToRad(90) },
+				{"Elevation 1", ToRad(0) }
+			};
+
 			for (int i = 0; i < solarBlocks.Count; i++)
 			{
 				var block = solarBlocks[i] as IMyTerminalBlock;
@@ -78,13 +83,19 @@ namespace IngameScript
 				if (!block.CustomName.Contains("Arm"))
 				{
 					if (block is IMyPistonBase) { solarPistons.Add(block as IMyPistonBase); }
-					else if (block is IMyMotorStator) { solarRotors.Add(block as IMyMotorStator); }
+					
+					else if (block is IMyMotorStator)
+					{
+						foreach(KeyValuePair<String, float> rotorHome in solarHome)
+						{
+							if (block.CustomName.Contains(rotorHome.Key))
+							{
+								solarRotors[block as IMyMotorStator] = ToRad(rotorHome.Value);
+							}
+						}
+					}
 				}
 			}
-
-			solarHome["Azimuth"] = ToRad(-90);
-			solarHome["Elevation 0"] = ToRad(90);
-			solarHome["Elevation 1"] = ToRad(0);
 
 			//Drill Aseembly
 			IMyBlockGroup drillGroup = GridTerminalSystem.GetBlockGroupWithName("[Obsidian] Drill Assembly");
@@ -185,8 +196,39 @@ namespace IngameScript
 
 		public void SolarToggle()
 		{
-		
-		
+			if (!solarMoving)
+			{
+				solarMoving = true;
+				solarRaising = !solarRaising;
+
+				if (solarRaising) { PanelRetract(); }
+				else { solarArmRotor.TargetVelocityRPM = -3; }
+			}
+			else
+			{
+				if (solarRaising)
+				{
+					if (solarArmRotor.Angle == solarArmRotor.LowerLimitRad)
+					{
+						if (solarArmPiston.CurrentPosition == solarArmPiston.LowestPosition)
+						{
+							solarArmPiston.Extend();
+						}
+						else if (solarArmPiston.CurrentPosition == solarArmPiston.HighestPosition)
+						{
+							PanelExtend();
+							solarMoving = false;
+						}
+						else { return; }
+					}
+					else { return; }
+				}
+				else
+				{
+					
+				}
+			}
+
 		/*/retract solar
 			if (solarStatus == "up")
 			{
@@ -245,22 +287,16 @@ namespace IngameScript
 			solarProgram.Enabled = false;
 
 			foreach (IMyPistonBase piston in solarPistons) { piston.Retract(); }
-			foreach (IMyMotorStator rotor in solarRotors)
+			foreach (KeyValuePair<IMyMotorStator, float> rotor in solarRotors)
 			{
-				foreach (KeyValuePair<string, float> homePos in solarHome)
-				{
-					if (rotor.CustomName.Contains(homePos.Key))
-					{
-						RotateTo(rotor, homePos.Value, 2);
-					}
-				}
+				RotateTo(rotor.Key, rotor.Value, 2);
 			}
 		}
 
 		void PanelExtend()
 		{
 			foreach (IMyPistonBase piston in solarPistons) { piston.Extend(); }
-			foreach (IMyMotorStator rotor in solarRotors)
+			foreach (IMyMotorStator rotor in solarRotors.Keys)
 			{
 				rotor.TargetVelocityRPM = 0;
 				rotor.LowerLimitDeg = -1000;
