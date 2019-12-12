@@ -24,8 +24,6 @@ namespace IngameScript
 
 		//from here
 
-		//desktop sync test
-
 		MyCommandLine _commandLine = new MyCommandLine();
 		Dictionary<string, Action> _commands = new Dictionary<string, Action>(StringComparer.OrdinalIgnoreCase);
 
@@ -55,7 +53,6 @@ namespace IngameScript
 		//Misc
 		bool sleep = true;
 
-		int tic = 0;
 		IMyTextSurfaceProvider LCD;
 		string debug = "";
 
@@ -73,9 +70,9 @@ namespace IngameScript
 			solarArmRotor = GridTerminalSystem.GetBlockWithName("Solar Arm Rotor") as IMyMotorStator;
 
 			Dictionary<String, float> solarHome = new Dictionary<String, float>() {
-				{"Azimuth", ToRad(-90) },
-				{"Elevation 0", ToRad(90) },
-				{"Elevation 1", ToRad(0) }
+				{"Azimuth", -90},
+				{"Elevation 0", 90},
+				{"Elevation 1", 0}
 			};
 
 			for (int i = 0; i < solarBlocks.Count; i++)
@@ -88,11 +85,11 @@ namespace IngameScript
 
 					else if (block is IMyMotorStator)
 					{
-						foreach (KeyValuePair<String, float> rotorHome in solarHome)
+						foreach (KeyValuePair<String, float> rotor in solarHome)
 						{
-							if (block.CustomName.Contains(rotorHome.Key))
+							if (block.CustomName.Contains(rotor.Key))
 							{
-								solarRotors[block as IMyMotorStator] = ToRad(rotorHome.Value);
+								solarRotors[block as IMyMotorStator] = ToRad(rotor.Value);
 							}
 						}
 					}
@@ -127,9 +124,10 @@ namespace IngameScript
 			debug = (sleep ? "sleeping" : (solarRaising ? "Solar Raising" : "Solar Lowering"));
 			LCD.GetSurface(0).WriteText(debug);
 
-			if (solarMoving) { SolarToggle(); }
-
-			//if (drillMoving) { DrillArmToggle(); }
+			foreach (KeyValuePair<IMyMotorStator, float> rotor in solarRotors)
+			{
+				Echo(rotor.Key.CustomName + rotor.Value);
+			}
 
 			if (_commandLine.TryParse(argument))
 			{
@@ -140,6 +138,12 @@ namespace IngameScript
 				if (_commands.TryGetValue(_commandLine.Argument(0), out commandAction)) { commandAction(); }
 				else { Echo($"Unknown command {command}"); }
 			}
+
+			if (sleep) { return; }
+
+			if (solarMoving) { SolarToggle(); }
+
+			//if (drillMoving) { DrillArmToggle(); }
 		}
 
 		public void DrillArmToggle()
@@ -231,6 +235,7 @@ namespace IngameScript
 		{
 			if (!solarMoving)
 			{
+				sleep = false;
 				solarMoving = true;
 				solarRaising = !solarRaising;
 
@@ -241,7 +246,7 @@ namespace IngameScript
 			{
 				if (solarRaising)
 				{
-					if (solarArmRotor.Angle == solarArmRotor.LowerLimitRad) //arm rotation complete
+					if (!rotorMoving(solarArmRotor, false)) //arm rotation complete
 					{
 						if (solarArmPiston.CurrentPosition == solarArmPiston.LowestPosition)
 						{
@@ -251,6 +256,7 @@ namespace IngameScript
 						{
 							PanelExtend();
 							solarMoving = false;
+							sleep = true;
 						}
 						else { return; }
 					}
@@ -271,6 +277,7 @@ namespace IngameScript
 					{
 						solarArmRotor.TargetVelocityRPM = 3;
 						solarMoving = false;
+						sleep = true;
 					}
 					else { return; }
 				}
@@ -327,6 +334,12 @@ namespace IngameScript
 		bool rotorMoving(IMyMotorStator rotor)
 		{
 			return (Math.Abs(rotor.Angle - rotor.UpperLimitRad) > 0.01 && Math.Abs(rotor.Angle - rotor.LowerLimitRad) > 0.01);
+		}
+
+		bool rotorMoving(IMyMotorStator rotor, bool upper)
+		{
+			if (upper) { return Math.Abs(rotor.Angle - rotor.UpperLimitRad) > 0.01; }
+			else { return Math.Abs(rotor.Angle - rotor.LowerLimitRad) > 0.01; }
 		}
 
 		void PanelRetract()
