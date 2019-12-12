@@ -83,10 +83,10 @@ namespace IngameScript
 				if (!block.CustomName.Contains("Arm"))
 				{
 					if (block is IMyPistonBase) { solarPistons.Add(block as IMyPistonBase); }
-					
+
 					else if (block is IMyMotorStator)
 					{
-						foreach(KeyValuePair<String, float> rotorHome in solarHome)
+						foreach (KeyValuePair<String, float> rotorHome in solarHome)
 						{
 							if (block.CustomName.Contains(rotorHome.Key))
 							{
@@ -181,43 +181,43 @@ namespace IngameScript
 				}
 			}
 
-		/*
-			if (!drillMoving && !drillRaising)
-			{
-				drillMoving = true;
-				drillRaising = true;
-				drillRotor1.RotorLock = false;
-				drillRotor1.SetValue<bool>("ShareInertiaTensor", false);
-				drillRotor1.TargetVelocityRPM = -1;
-				drillRotor2.RotorLock = false;
-				drillRotor2.TargetVelocityRPM = -1;
-			}
-			else if (drillStatus == "raising")
-			{
-				if (RotorMoving(drillRotor1) || RotorMoving(drillRotor2)) { return; }
-				drillStatus = "up";
-				drillRotor1.RotorLock = true;
-				drillRotor1.SetValue<bool>("ShareInertiaTensor", true);
-				drillRotor2.RotorLock = true;
-			}
-			else if (drillStatus == "up")
-			{
-				drillStatus = "lowering";
-				drillRotor1.RotorLock = false;
-				drillRotor1.SetValue<bool>("ShareInertiaTensor", false);
-				drillRotor1.TargetVelocityRPM = 1;
-				drillRotor2.RotorLock = false;
-				drillRotor2.TargetVelocityRPM = 1;
-			}
-			else if (drillStatus == "lowering")
-			{
-				if (RotorMoving(drillRotor1) || RotorMoving(drillRotor2)) { return; }
-				drillStatus = "down";
-				drillRotor1.RotorLock = true;
-				drillRotor1.SetValue<bool>("ShareInertiaTensor", true);
-				drillRotor2.RotorLock = true;
-			}
-		*/
+			/*
+				if (!drillMoving && !drillRaising)
+				{
+					drillMoving = true;
+					drillRaising = true;
+					drillRotor1.RotorLock = false;
+					drillRotor1.SetValue<bool>("ShareInertiaTensor", false);
+					drillRotor1.TargetVelocityRPM = -1;
+					drillRotor2.RotorLock = false;
+					drillRotor2.TargetVelocityRPM = -1;
+				}
+				else if (drillStatus == "raising")
+				{
+					if (RotorMoving(drillRotor1) || RotorMoving(drillRotor2)) { return; }
+					drillStatus = "up";
+					drillRotor1.RotorLock = true;
+					drillRotor1.SetValue<bool>("ShareInertiaTensor", true);
+					drillRotor2.RotorLock = true;
+				}
+				else if (drillStatus == "up")
+				{
+					drillStatus = "lowering";
+					drillRotor1.RotorLock = false;
+					drillRotor1.SetValue<bool>("ShareInertiaTensor", false);
+					drillRotor1.TargetVelocityRPM = 1;
+					drillRotor2.RotorLock = false;
+					drillRotor2.TargetVelocityRPM = 1;
+				}
+				else if (drillStatus == "lowering")
+				{
+					if (RotorMoving(drillRotor1) || RotorMoving(drillRotor2)) { return; }
+					drillStatus = "down";
+					drillRotor1.RotorLock = true;
+					drillRotor1.SetValue<bool>("ShareInertiaTensor", true);
+					drillRotor2.RotorLock = true;
+				}
+			*/
 		}
 
 		public void StartDrilling()
