@@ -125,8 +125,9 @@ namespace IngameScript
 			debug = (sleep ? "sleeping" : (solarRaising ? "Solar Raising" : "Solar Lowering"));
 			LCD.GetSurface(0).WriteText(debug);
 
-			if (tic % 3 == 0) { if (solarMoving) { SolarToggle(); } }
-			else { if (drillMoving) { DrillArmToggle(); } }
+			if (solarMoving) { SolarToggle(); }
+
+			//if (drillMoving) { DrillArmToggle(); }
 
 			if (_commandLine.TryParse(argument))
 			{
@@ -144,9 +145,39 @@ namespace IngameScript
 			if (!drillMoving)
 			{
 				drillMoving = true;
+				drillRaising = !drillRaising;
 
-				if (drillRaising) {
-					
+				drillRotor1.RotorLock = false;
+				drillRotor1.SetValue<bool>("ShareInertiaTensor", false);
+				drillRotor2.RotorLock = false;
+
+				if (drillRaising) { drillRotor2.TargetVelocityRPM = -2; }
+				else { drillRotor1.TargetVelocityRPM = 1; }
+			}
+			else
+			{
+				if (drillRaising)
+				{
+					if (drillRotor2.Angle == drillRotor2.LowerLimitRad)
+					{
+						if (drillRotor1.Angle == drillRotor1.UpperLimitRad)
+						{
+							drillRotor2.RotorLock = true;
+							drillRotor1.TargetVelocityRPM = -1;
+						}
+						else
+						{
+							drillRotor1.RotorLock = true;
+							drillRotor1.SetValue<bool>("ShareInertiaTensor", false);
+							drillMoving = false;
+						}
+					}
+					else { return; }
+				}
+				else
+				{
+					//if (drillRotor1.Angle != drillRotor1.UpperLimitRad) { return; }
+					//else if (drillrotor)
 				}
 			}
 
@@ -201,14 +232,14 @@ namespace IngameScript
 				solarMoving = true;
 				solarRaising = !solarRaising;
 
-				if (solarRaising) { PanelRetract(); }
-				else { solarArmRotor.TargetVelocityRPM = -3; }
+				if (solarRaising) { solarArmRotor.TargetVelocityRPM = -3; } //rotate arm
+				else { PanelRetract(); }
 			}
 			else
 			{
 				if (solarRaising)
 				{
-					if (solarArmRotor.Angle == solarArmRotor.LowerLimitRad)
+					if (solarArmRotor.Angle == solarArmRotor.LowerLimitRad) //arm rotation complete
 					{
 						if (solarArmPiston.CurrentPosition == solarArmPiston.LowestPosition)
 						{
@@ -225,11 +256,28 @@ namespace IngameScript
 				}
 				else
 				{
-					
+					foreach (IMyMotorStator rotor in solarRotors.Keys)
+					{
+						if (rotorMoving(rotor)) { return; } //return if panels not in position
+					}
+
+					if (solarArmPiston.CurrentPosition == solarArmPiston.HighestPosition)
+					{
+						solarArmPiston.Retract();
+					}
+					else if (solarArmPiston.CurrentPosition == solarArmPiston.LowestPosition)
+					{
+						solarArmRotor.TargetVelocityRPM = 3;
+						solarMoving = false;
+					}
+					else { return; }
 				}
 			}
+		}
 
-		/*/retract solar
+		/*
+		public void SolarToggle()
+		{
 			if (solarStatus == "up")
 			{
 				solarStatus = "retracting panels";
@@ -272,14 +320,11 @@ namespace IngameScript
 				solarStatus = "up";
 				PanelExtend();
 			}
-		*/
-		}
+		}*/
 
-		bool RotorMoving(IMyMotorStator rotor)
+		bool rotorMoving(IMyMotorStator rotor)
 		{
-			if (rotor.UpperLimitDeg >= 360 && rotor.LowerLimitDeg <= -360 && rotor.TargetVelocityRPM != 0) { return true; }
-			else if (Math.Abs(rotor.Angle - rotor.UpperLimitRad) > 0.01 && Math.Abs(rotor.Angle - rotor.LowerLimitRad) > 0.01) { return true; }
-			return false;
+			return (Math.Abs(rotor.Angle - rotor.UpperLimitRad) > 0.01 && Math.Abs(rotor.Angle - rotor.LowerLimitRad) > 0.01);
 		}
 
 		void PanelRetract()
