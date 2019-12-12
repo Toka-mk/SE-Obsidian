@@ -51,7 +51,8 @@ namespace IngameScript
 		bool drillRaising = false;
 
 		//Misc
-		bool sleep = true;
+		int tic = 0;
+		float pi = (float)Math.PI;
 
 		IMyTextSurfaceProvider LCD;
 		string debug = "";
@@ -69,7 +70,8 @@ namespace IngameScript
 			solarArmPiston = GridTerminalSystem.GetBlockWithName("Solar Arm Piston") as IMyPistonBase;
 			solarArmRotor = GridTerminalSystem.GetBlockWithName("Solar Arm Rotor") as IMyMotorStator;
 
-			Dictionary<String, float> solarHome = new Dictionary<String, float>() {
+			Dictionary<String, float> solarHome = new Dictionary<String, float>()
+			{
 				{"Azimuth", -90},
 				{"Elevation 0", 90},
 				{"Elevation 1", 0}
@@ -81,7 +83,7 @@ namespace IngameScript
 
 				if (!block.CustomName.Contains("Arm"))
 				{
-					if (block is IMyPistonBase) { solarPistons.Add(block as IMyPistonBase); }
+					if (block is IMyPistonBase) solarPistons.Add(block as IMyPistonBase);
 
 					else if (block is IMyMotorStator)
 					{
@@ -104,10 +106,10 @@ namespace IngameScript
 			{
 				var block = drillBlocks[i] as IMyTerminalBlock;
 
-				if (block is IMyPistonBase) { drillPistons.Add(block as IMyPistonBase); }
-				else if (block is IMyShipDrill) { drills.Add(block as IMyShipDrill); }
-				else if (block.CustomName.Contains("Drill Rotor 1")) { drillRotor1 = block as IMyMotorStator; }
-				else if (block.CustomName.Contains("Drill Rotor 2")) { drillRotor2 = block as IMyMotorStator; }
+				if (block is IMyPistonBase) drillPistons.Add(block as IMyPistonBase);
+				else if (block is IMyShipDrill) drills.Add(block as IMyShipDrill);
+				else if (block.CustomName.Contains("Drill Rotor 1")) drillRotor1 = block as IMyMotorStator;
+				else if (block.CustomName.Contains("Drill Rotor 2")) drillRotor2 = block as IMyMotorStator;
 			}
 
 			//Misc
@@ -121,13 +123,15 @@ namespace IngameScript
 
 		public void Main(string argument, UpdateType updateSource)
 		{
-			debug = (sleep ? "sleeping" : (solarRaising ? "Solar Raising" : "Solar Lowering"));
-			LCD.GetSurface(0).WriteText(debug);
+			tic++;
 
-			foreach (KeyValuePair<IMyMotorStator, float> rotor in solarRotors)
-			{
-				Echo(rotor.Key.CustomName + rotor.Value);
-			}
+			debug = SleepMode() ? "sleeping\n" : "working\n";
+			debug += solarMoving ? (solarRaising ? "solar raising\n" : "solar lowering\n") : "";
+			debug += drillMoving ? (drillRaising ? "drill raising\n" : "drill lowering\n") : "";
+			debug += "drill rotor 1 lock: " + drillRotor1.RotorLock.ToString()
+					+ "\ndrill rotor 2 lock: " + drillRotor2.RotorLock.ToString();
+
+			LCD.GetSurface(0).WriteText(debug);
 
 			if (_commandLine.TryParse(argument))
 			{
@@ -135,15 +139,19 @@ namespace IngameScript
 
 				string command = _commandLine.Argument(0);
 
-				if (_commands.TryGetValue(_commandLine.Argument(0), out commandAction)) { commandAction(); }
+				if (_commands.TryGetValue(_commandLine.Argument(0), out commandAction)) commandAction();
 				else { Echo($"Unknown command {command}"); }
 			}
 
-			if (sleep) { return; }
+			if (SleepMode()) return;
+			if (tic%2 == 0 && solarMoving) SolarToggle();
+			else if (drillMoving) DrillArmToggle();
 
-			if (solarMoving) { SolarToggle(); }
+		}
 
-			//if (drillMoving) { DrillArmToggle(); }
+		bool SleepMode()
+		{
+			return !(solarMoving || drillMoving);
 		}
 
 		public void DrillArmToggle()
@@ -157,89 +165,66 @@ namespace IngameScript
 				drillRotor1.SetValue<bool>("ShareInertiaTensor", false);
 				drillRotor2.RotorLock = false;
 
-				if (drillRaising) { drillRotor2.TargetVelocityRPM = -2; }
-				else { drillRotor1.TargetVelocityRPM = 1; }
+				if (drillRaising) drillRotor2.TargetVelocityRPM = 2;
+				else { drillRotor1.TargetVelocityRPM = -1; }
 			}
 			else
 			{
 				if (drillRaising)
 				{
-					if (drillRotor2.Angle == drillRotor2.LowerLimitRad)
+					if (!rotorMoving(drillRotor2, true))	//drill rotor 2 is up
 					{
-						if (drillRotor1.Angle == drillRotor1.UpperLimitRad)
+						if (!rotorMoving(drillRotor1, false))	//drill rotor 1 is down
 						{
 							drillRotor2.RotorLock = true;
-							drillRotor1.TargetVelocityRPM = -1;
+							drillRotor1.TargetVelocityRPM = 1;
 						}
-						else
+						else if (!rotorMoving(drillRotor1, true))	//drill rotor 1 is up
 						{
 							drillRotor1.RotorLock = true;
-							drillRotor1.SetValue<bool>("ShareInertiaTensor", false);
+							drillRotor1.SetValue<bool>("ShareInertiaTensor", true);
 							drillMoving = false;
 						}
+						else { return; }
 					}
 					else { return; }
 				}
 				else
 				{
-					//if (drillRotor1.Angle != drillRotor1.UpperLimitRad) { return; }
-					//else if (drillrotor)
+					if (!rotorMoving(drillRotor1, false))	//drill rotor 1 is down
+					{
+						if (!rotorMoving(drillRotor2, true)) //drill rotor 2 is up
+						{
+							drillRotor1.RotorLock = true;
+							drillRotor2.TargetVelocityRPM = -2;
+						}
+						else if (!rotorMoving(drillRotor2, false)) //drill rotor 2 is down
+						{
+							drillRotor2.RotorLock = true;
+							drillRotor1.SetValue<bool>("ShareInertiaTensor", true);
+							drillMoving = false;
+						}
+						else { return; }
+					}
+					else { return; }
 				}
 			}
-
-			/*
-				if (!drillMoving && !drillRaising)
-				{
-					drillMoving = true;
-					drillRaising = true;
-					drillRotor1.RotorLock = false;
-					drillRotor1.SetValue<bool>("ShareInertiaTensor", false);
-					drillRotor1.TargetVelocityRPM = -1;
-					drillRotor2.RotorLock = false;
-					drillRotor2.TargetVelocityRPM = -1;
-				}
-				else if (drillStatus == "raising")
-				{
-					if (RotorMoving(drillRotor1) || RotorMoving(drillRotor2)) { return; }
-					drillStatus = "up";
-					drillRotor1.RotorLock = true;
-					drillRotor1.SetValue<bool>("ShareInertiaTensor", true);
-					drillRotor2.RotorLock = true;
-				}
-				else if (drillStatus == "up")
-				{
-					drillStatus = "lowering";
-					drillRotor1.RotorLock = false;
-					drillRotor1.SetValue<bool>("ShareInertiaTensor", false);
-					drillRotor1.TargetVelocityRPM = 1;
-					drillRotor2.RotorLock = false;
-					drillRotor2.TargetVelocityRPM = 1;
-				}
-				else if (drillStatus == "lowering")
-				{
-					if (RotorMoving(drillRotor1) || RotorMoving(drillRotor2)) { return; }
-					drillStatus = "down";
-					drillRotor1.RotorLock = true;
-					drillRotor1.SetValue<bool>("ShareInertiaTensor", true);
-					drillRotor2.RotorLock = true;
-				}
-			*/
 		}
 
 		public void StartDrilling()
 		{
-			foreach (IMyPistonBase piston in drillPistons) { debug += ("\n" + piston.CustomName); }
+			
+			foreach (IMyPistonBase piston in drillPistons) debug += ("\n" + piston.CustomName);
 		}
 
 		public void SolarToggle()
 		{
-			if (!solarMoving)
+			if (!solarMoving)	
 			{
-				sleep = false;
 				solarMoving = true;
 				solarRaising = !solarRaising;
 
-				if (solarRaising) { solarArmRotor.TargetVelocityRPM = -3; } //rotate arm
+				if (solarRaising) solarArmRotor.TargetVelocityRPM = -3;	//rotate arm up
 				else { PanelRetract(); }
 			}
 			else
@@ -250,13 +235,12 @@ namespace IngameScript
 					{
 						if (solarArmPiston.CurrentPosition == solarArmPiston.LowestPosition)
 						{
-							solarArmPiston.Extend();
+							solarArmPiston.Velocity = 3;
 						}
 						else if (solarArmPiston.CurrentPosition == solarArmPiston.HighestPosition)
 						{
 							PanelExtend();
 							solarMoving = false;
-							sleep = true;
 						}
 						else { return; }
 					}
@@ -266,87 +250,46 @@ namespace IngameScript
 				{
 					foreach (IMyMotorStator rotor in solarRotors.Keys)
 					{
-						if (rotorMoving(rotor)) { return; } //return if panels not in position
+						if (rotorMoving(rotor)) return; //return if panels not in position
 					}
 
 					if (solarArmPiston.CurrentPosition == solarArmPiston.HighestPosition)
 					{
-						solarArmPiston.Retract();
+						solarArmPiston.Velocity = -3;
 					}
 					else if (solarArmPiston.CurrentPosition == solarArmPiston.LowestPosition)
 					{
 						solarArmRotor.TargetVelocityRPM = 3;
 						solarMoving = false;
-						sleep = true;
 					}
-					else { return; }
+					else return;
 				}
 			}
 		}
 
-		/*
-		public void SolarToggle()
-		{
-			if (solarStatus == "up")
-			{
-				solarStatus = "retracting panels";
-				PanelRetract();
-			}
-			else if (solarStatus == "retracting panels")
-			{
-				bool cont = true;
-
-				foreach (IMyMotorStator rotor in solarRotors)
-				{
-					if (RotorMoving(rotor)) { cont = false; }
-				}
-
-				if (cont)
-				{
-					solarStatus = "retracting arm";
-					solarArmPiston.Retract();
-				}
-			}
-			else if (solarStatus == "retracting arm" && solarArmPiston.CurrentPosition == solarArmPiston.LowestPosition)
-			{
-				solarStatus = "down";
-				solarArmRotor.TargetVelocityRPM = 3;
-			}
-
-			//extend solar
-			else if (solarStatus == "down")
-			{
-				solarStatus = "rotating arm";
-				solarArmRotor.TargetVelocityRPM = -3;
-			}
-			else if (solarStatus == "rotating arm" && solarArmRotor.Angle - solarArmRotor.LowerLimitRad < 0.01)
-			{
-				solarStatus = "extending arm";
-				solarArmPiston.Extend();
-			}
-			else if (solarStatus == "extending arm" && solarArmPiston.CurrentPosition == solarArmPiston.HighestPosition)
-			{
-				solarStatus = "up";
-				PanelExtend();
-			}
-		}*/
-
 		bool rotorMoving(IMyMotorStator rotor)
 		{
-			return (Math.Abs(rotor.Angle - rotor.UpperLimitRad) > 0.01 && Math.Abs(rotor.Angle - rotor.LowerLimitRad) > 0.01);
+			float diff = Math.Abs(NormalizeRad(rotor.Angle - rotor.UpperLimitRad));
+			if (diff < 0.01) return false;
+
+			diff = Math.Abs(NormalizeRad(rotor.Angle - rotor.LowerLimitRad));
+			if (diff < 0.01) return false;
+
+			return true;
 		}
 
 		bool rotorMoving(IMyMotorStator rotor, bool upper)
 		{
-			if (upper) { return Math.Abs(rotor.Angle - rotor.UpperLimitRad) > 0.01; }
-			else { return Math.Abs(rotor.Angle - rotor.LowerLimitRad) > 0.01; }
+			Echo(rotor.CustomName + ": " + rotor.Angle);
+			float diff = Math.Abs(NormalizeRad(rotor.Angle - (upper ? rotor.UpperLimitRad : rotor.LowerLimitRad)));
+			return diff > 0.01;
 		}
 
 		void PanelRetract()
 		{
 			solarProgram.Enabled = false;
 
-			foreach (IMyPistonBase piston in solarPistons) { piston.Retract(); }
+			foreach (IMyPistonBase piston in solarPistons) piston.Velocity = -1;
 			foreach (KeyValuePair<IMyMotorStator, float> rotor in solarRotors)
 			{
 				RotateTo(rotor.Key, rotor.Value, 2);
@@ -355,40 +298,47 @@ namespace IngameScript
 
 		void PanelExtend()
 		{
-			foreach (IMyPistonBase piston in solarPistons) { piston.Extend(); }
+			/*
 			foreach (IMyMotorStator rotor in solarRotors.Keys)
 			{
-				rotor.TargetVelocityRPM = 0;
-				rotor.LowerLimitDeg = -1000;
-				rotor.UpperLimitDeg = 1000;
+				rotor.TargetVelocityRad = 0;
+				rotor.UpperLimitRad = 999;
+				rotor.LowerLimitRad = -999;
 			}
+			*/
+			foreach (IMyPistonBase piston in solarPistons) piston.Velocity = 1;
 			solarProgram.Enabled = true;
 		}
 
 		void RotateTo(IMyMotorStator rotor, float targetAngle, float speed)
 		{
-			float pi = (float)Math.PI;
-			float angleDiff = targetAngle - rotor.Angle;
-
-			while (angleDiff > pi) { angleDiff -= (2 * pi); }
-			while (angleDiff < -pi) { angleDiff += (2 * pi); }
+			float angleDiff = NormalizeRad(targetAngle - rotor.Angle);
 
 			if (angleDiff > 0)
 			{
 				rotor.UpperLimitRad = targetAngle;
+				rotor.LowerLimitRad = targetAngle - angleDiff - 1;
 				rotor.TargetVelocityRPM = speed;
 			}
 			else
 			{
 				rotor.LowerLimitRad = targetAngle;
+				rotor.UpperLimitRad = targetAngle - angleDiff + 1;
 				rotor.TargetVelocityRPM = -speed;
 			}
 		}
 
+		float NormalizeRad(float rad)
+		{
+			if (rad > pi) rad -= (2 * pi);
+			if (rad < -pi) rad += (2 * pi);
+			return rad;
+		}
+
 		float ToRad(float deg)
 		{
-			while (deg < 0) { deg += 360; }
-			return deg * (float)Math.PI / 180;
+			float rad = deg * pi / 180;
+			return NormalizeRad(rad);
 		}
 
 		//to here
