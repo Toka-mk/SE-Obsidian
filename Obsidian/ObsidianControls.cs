@@ -24,6 +24,8 @@ namespace IngameScript
 
 		//from here
 
+		//desktop sync test
+
 		MyCommandLine _commandLine = new MyCommandLine();
 		Dictionary<string, Action> _commands = new Dictionary<string, Action>(StringComparer.OrdinalIgnoreCase);
 
