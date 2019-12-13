@@ -54,6 +54,7 @@ namespace IngameScript
 		int tic = 0;
 		float pi = (float)Math.PI;
 
+		List<ScheduleAction> schedule = new List<ScheduleAction>();
 		IMyTextSurfaceProvider LCD;
 		string debug = "";
 
@@ -123,13 +124,11 @@ namespace IngameScript
 
 		public void Main(string argument, UpdateType updateSource)
 		{
-			tic++;
+			tic+=10;
 
 			debug = SleepMode() ? "sleeping\n" : "working\n";
-			debug += solarMoving ? (solarRaising ? "solar raising\n" : "solar lowering\n") : "";
-			debug += drillMoving ? (drillRaising ? "drill raising\n" : "drill lowering\n") : "";
-			debug += "drill rotor 1 lock: " + drillRotor1.RotorLock.ToString()
-					+ "\ndrill rotor 2 lock: " + drillRotor2.RotorLock.ToString();
+			if (solarMoving) debug += solarRaising ? "solar raising\n" : "solar lowering\n";
+			if (drillMoving) debug += drillRaising ? "drill raising\n" : "drill lowering\n";
 
 			LCD.GetSurface(0).WriteText(debug);
 
@@ -339,6 +338,41 @@ namespace IngameScript
 		{
 			float rad = deg * pi / 180;
 			return NormalizeRad(rad);
+		}
+
+		void UpdateSchedule()
+		{
+			foreach (ScheduleAction action in schedule)
+			{
+				if (action.Enabled) action.Update(tic, 0)
+			}
+		}
+
+		public class ScheduleAction
+		{
+			public int DelayTics;
+			public bool Enabled = false;
+			
+			private Action _action;
+			int _lastTic;
+
+			public ScheduleAction(Action action, int delayTics, int currentTic, bool enabled = true)
+			{
+				_action = action;
+				DelayTics = delayTics;
+				Enabled = enabled;
+				_lastTic = currentTic;
+			}
+
+			public void Update(int currentTic)
+			{
+				if (currentTic - _lastTic > DelayTics && Enabled)
+				{
+					_action.Invoke();
+					_lastTic = currentTic;
+					Enabled = false;
+				}
+			}
 		}
 
 		//to here
