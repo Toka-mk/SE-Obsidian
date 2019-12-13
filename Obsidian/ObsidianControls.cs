@@ -31,10 +31,12 @@ namespace IngameScript
 		List<IMyTerminalBlock> solarBlocks = new List<IMyTerminalBlock>();
 		List<IMyPistonBase> solarPistons = new List<IMyPistonBase>();
 		Dictionary<IMyMotorStator, float> solarRotors = new Dictionary<IMyMotorStator, float>();
+		List<IMyMotorStator> sr = new List<IMyMotorStator>();
 
 		IMyProgrammableBlock solarProgram;
 		IMyPistonBase solarArmPiston;
 		IMyMotorStator solarArmRotor;
+		ScheduleAction unlimitSolar;
 
 		bool solarMoving = false;
 		bool solarRaising = false;
@@ -53,9 +55,10 @@ namespace IngameScript
 		//Misc
 		int tic = 0;
 		float pi = (float)Math.PI;
-
+		
 		List<ScheduleAction> schedule = new List<ScheduleAction>();
 		IMyTextSurfaceProvider LCD;
+		IMyProgrammableBlock testProgram;
 		string debug = "";
 
 		public Program()
@@ -70,6 +73,8 @@ namespace IngameScript
 			solarProgram = GridTerminalSystem.GetBlockWithName("Solar Program") as IMyProgrammableBlock;
 			solarArmPiston = GridTerminalSystem.GetBlockWithName("Solar Arm Piston") as IMyPistonBase;
 			solarArmRotor = GridTerminalSystem.GetBlockWithName("Solar Arm Rotor") as IMyMotorStator;
+			unlimitSolar = new ScheduleAction(UnlimitSolarRotors, 300, tic, false);
+			schedule.Add(unlimitSolar);
 
 			Dictionary<String, float> solarHome = new Dictionary<String, float>()
 			{
@@ -93,6 +98,7 @@ namespace IngameScript
 							if (block.CustomName.Contains(rotor.Key))
 							{
 								solarRotors[block as IMyMotorStator] = ToRad(rotor.Value);
+								sr.Add(block as IMyMotorStator);
 							}
 						}
 					}
@@ -115,10 +121,12 @@ namespace IngameScript
 
 			//Misc
 			LCD = GridTerminalSystem.GetBlockWithName("Test Program") as IMyTextSurfaceProvider;
+			testProgram = GridTerminalSystem.GetBlockWithName("Test Program") as IMyProgrammableBlock;
 
 			_commands["solar"] = SolarToggle;
 			_commands["da"] = DrillArmToggle;
 			_commands["sd"] = StartDrilling;
+			_commands["unlimit_solar"] = UnlimitSolarRotors;
 
 		}
 
@@ -141,6 +149,8 @@ namespace IngameScript
 				if (_commands.TryGetValue(_commandLine.Argument(0), out commandAction)) commandAction();
 				else { Echo($"Unknown command {command}"); }
 			}
+
+			UpdateSchedule();
 
 			if (SleepMode()) return;
 			if (tic%2 == 0 && solarMoving) SolarToggle();
@@ -297,16 +307,20 @@ namespace IngameScript
 
 		void PanelExtend()
 		{
-			/*
+			UnlimitSolarRotors();
+
+			foreach (IMyPistonBase piston in solarPistons) piston.Velocity = 1;
+			solarProgram.Enabled = true;
+		}
+
+		public void UnlimitSolarRotors()
+		{
 			foreach (IMyMotorStator rotor in solarRotors.Keys)
 			{
 				rotor.TargetVelocityRad = 0;
-				rotor.UpperLimitRad = 999;
-				rotor.LowerLimitRad = -999;
+				rotor.UpperLimitRad = float.MaxValue;
+				rotor.LowerLimitRad = float.MinValue;
 			}
-			*/
-			foreach (IMyPistonBase piston in solarPistons) piston.Velocity = 1;
-			solarProgram.Enabled = true;
 		}
 
 		void RotateTo(IMyMotorStator rotor, float targetAngle, float speed)
@@ -340,12 +354,20 @@ namespace IngameScript
 			return NormalizeRad(rad);
 		}
 
+		
 		void UpdateSchedule()
 		{
+			bool active = false;
 			foreach (ScheduleAction action in schedule)
 			{
-				if (action.Enabled) action.Update(tic, 0)
+				if (action.Enabled)
+				{
+					action.Update(tic);
+					active = true;
+				}
 			}
+
+			if (tic > 108000 && !active) tic = 0;
 		}
 
 		public class ScheduleAction
@@ -354,9 +376,9 @@ namespace IngameScript
 			public bool Enabled = false;
 			
 			private Action _action;
-			int _lastTic;
+			public int _lastTic;
 
-			public ScheduleAction(Action action, int delayTics, int currentTic, bool enabled = true)
+			public ScheduleAction(Action action, int delayTics, int currentTic, bool enabled = false)
 			{
 				_action = action;
 				DelayTics = delayTics;
@@ -372,6 +394,13 @@ namespace IngameScript
 					_lastTic = currentTic;
 					Enabled = false;
 				}
+			}
+
+			public void Enable(int currentTic, int delayTics = 0)
+			{
+				Enabled = true;
+				DelayTics = delayTics > 0 ? delayTics : DelayTics;
+				_lastTic = currentTic;
 			}
 		}
 
