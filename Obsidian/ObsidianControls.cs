@@ -31,12 +31,10 @@ namespace IngameScript
 		List<IMyTerminalBlock> solarBlocks = new List<IMyTerminalBlock>();
 		List<IMyPistonBase> solarPistons = new List<IMyPistonBase>();
 		Dictionary<IMyMotorStator, float> solarRotors = new Dictionary<IMyMotorStator, float>();
-		List<IMyMotorStator> sr = new List<IMyMotorStator>();
 
 		IMyProgrammableBlock solarProgram;
 		IMyPistonBase solarArmPiston;
 		IMyMotorStator solarArmRotor;
-		ScheduleAction unlimitSolar;
 
 		bool solarMoving = false;
 		bool solarRaising = false;
@@ -53,10 +51,8 @@ namespace IngameScript
 		bool drillRaising = false;
 
 		//Misc
-		int tic = 0;
 		float pi = (float)Math.PI;
-		
-		List<ScheduleAction> schedule = new List<ScheduleAction>();
+
 		IMyTextSurfaceProvider LCD;
 		IMyProgrammableBlock testProgram;
 		string debug = "";
@@ -73,8 +69,6 @@ namespace IngameScript
 			solarProgram = GridTerminalSystem.GetBlockWithName("Solar Program") as IMyProgrammableBlock;
 			solarArmPiston = GridTerminalSystem.GetBlockWithName("Solar Arm Piston") as IMyPistonBase;
 			solarArmRotor = GridTerminalSystem.GetBlockWithName("Solar Arm Rotor") as IMyMotorStator;
-			unlimitSolar = new ScheduleAction(UnlimitSolarRotors, 300, tic, false);
-			schedule.Add(unlimitSolar);
 
 			Dictionary<String, float> solarHome = new Dictionary<String, float>()
 			{
@@ -98,7 +92,6 @@ namespace IngameScript
 							if (block.CustomName.Contains(rotor.Key))
 							{
 								solarRotors[block as IMyMotorStator] = ToRad(rotor.Value);
-								sr.Add(block as IMyMotorStator);
 							}
 						}
 					}
@@ -126,14 +119,11 @@ namespace IngameScript
 			_commands["solar"] = SolarToggle;
 			_commands["da"] = DrillArmToggle;
 			_commands["sd"] = StartDrilling;
-			_commands["unlimit_solar"] = UnlimitSolarRotors;
 
 		}
 
 		public void Main(string argument, UpdateType updateSource)
 		{
-			tic+=10;
-
 			debug = SleepMode() ? "sleeping\n" : "working\n";
 			if (solarMoving) debug += solarRaising ? "solar raising\n" : "solar lowering\n";
 			if (drillMoving) debug += drillRaising ? "drill raising\n" : "drill lowering\n";
@@ -147,15 +137,12 @@ namespace IngameScript
 				string command = _commandLine.Argument(0);
 
 				if (_commands.TryGetValue(_commandLine.Argument(0), out commandAction)) commandAction();
-				else { Echo($"Unknown command {command}"); }
+				else Echo($"Unknown command {command}");
 			}
 
-			UpdateSchedule();
-
 			if (SleepMode()) return;
-			if (tic%2 == 0 && solarMoving) SolarToggle();
+			if (solarMoving) SolarToggle();
 			else if (drillMoving) DrillArmToggle();
-
 		}
 
 		bool SleepMode()
@@ -175,32 +162,32 @@ namespace IngameScript
 				drillRotor2.RotorLock = false;
 
 				if (drillRaising) drillRotor2.TargetVelocityRPM = 2;
-				else { drillRotor1.TargetVelocityRPM = -1; }
+				else drillRotor1.TargetVelocityRPM = -1;
 			}
 			else
 			{
 				if (drillRaising)
 				{
-					if (!rotorMoving(drillRotor2, true))	//drill rotor 2 is up
+					if (!rotorMoving(drillRotor2, true))    //drill rotor 2 is up
 					{
-						if (!rotorMoving(drillRotor1, false))	//drill rotor 1 is down
+						if (!rotorMoving(drillRotor1, false))   //drill rotor 1 is down
 						{
 							drillRotor2.RotorLock = true;
 							drillRotor1.TargetVelocityRPM = 1;
 						}
-						else if (!rotorMoving(drillRotor1, true))	//drill rotor 1 is up
+						else if (!rotorMoving(drillRotor1, true))   //drill rotor 1 is up
 						{
 							drillRotor1.RotorLock = true;
 							drillRotor1.SetValue<bool>("ShareInertiaTensor", true);
 							drillMoving = false;
 						}
-						else { return; }
+						else return;
 					}
-					else { return; }
+					else return;
 				}
 				else
 				{
-					if (!rotorMoving(drillRotor1, false))	//drill rotor 1 is down
+					if (!rotorMoving(drillRotor1, false))   //drill rotor 1 is down
 					{
 						if (!rotorMoving(drillRotor2, true)) //drill rotor 2 is up
 						{
@@ -213,28 +200,36 @@ namespace IngameScript
 							drillRotor1.SetValue<bool>("ShareInertiaTensor", true);
 							drillMoving = false;
 						}
-						else { return; }
+						else return;
 					}
-					else { return; }
+					else return;
 				}
 			}
 		}
 
 		public void StartDrilling()
 		{
-			
 			foreach (IMyPistonBase piston in drillPistons) debug += ("\n" + piston.CustomName);
 		}
 
 		public void SolarToggle()
 		{
-			if (!solarMoving)	
+			if (!solarMoving)
 			{
 				solarMoving = true;
 				solarRaising = !solarRaising;
 
-				if (solarRaising) solarArmRotor.TargetVelocityRPM = -3;	//rotate arm up
-				else { PanelRetract(); }
+				if (solarRaising) solarArmRotor.TargetVelocityRPM = -3; //rotate arm up
+				else
+				{
+					solarProgram.Enabled = false;
+
+					foreach (IMyPistonBase piston in solarPistons) piston.Velocity = -1;
+					foreach (KeyValuePair<IMyMotorStator, float> rotor in solarRotors)
+					{
+						RotateTo(rotor.Key, rotor.Value, 2);
+					}
+				}
 			}
 			else
 			{
@@ -248,12 +243,19 @@ namespace IngameScript
 						}
 						else if (solarArmPiston.CurrentPosition == solarArmPiston.HighestPosition)
 						{
-							PanelExtend();
+							foreach (IMyPistonBase piston in solarPistons) piston.Extend();
+							foreach (IMyMotorStator rotor in solarRotors.Keys)
+							{
+								rotor.TargetVelocityRPM = 0;
+								rotor.LowerLimitDeg = -1000;
+								rotor.UpperLimitDeg = 1000;
+							}
+							solarProgram.Enabled = true;
 							solarMoving = false;
 						}
-						else { return; }
+						else return;
 					}
-					else { return; }
+					else return;
 				}
 				else
 				{
@@ -294,58 +296,20 @@ namespace IngameScript
 			return diff > 0.01;
 		}
 
-		void PanelRetract()
-		{
-			solarProgram.Enabled = false;
-
-			foreach (IMyPistonBase piston in solarPistons) piston.Velocity = -1;
-			foreach (KeyValuePair<IMyMotorStator, float> rotor in solarRotors)
-			{
-				RotateTo(rotor.Key, rotor.Value, 2);
-			}
-		}
-
-		void PanelExtend()
-		{
-			UnlimitSolarRotors();
-
-			foreach (IMyPistonBase piston in solarPistons) piston.Velocity = 1;
-			solarProgram.Enabled = true;
-		}
-
-		public void UnlimitSolarRotors()
-		{
-			foreach (IMyMotorStator rotor in solarRotors.Keys)
-			{
-				rotor.TargetVelocityRad = 0;
-				rotor.UpperLimitRad = float.MaxValue;
-				rotor.LowerLimitRad = float.MinValue;
-			}
-		}
-
 		void RotateTo(IMyMotorStator rotor, float targetAngle, float speed)
 		{
 			float angleDiff = NormalizeRad(targetAngle - rotor.Angle);
 
 			if (angleDiff > 0)
 			{
-				rotor.UpperLimitRad = targetAngle;
-				rotor.LowerLimitRad = targetAngle - angleDiff - 1;
+				rotor.UpperLimitRad = rotor.Angle + angleDiff;
 				rotor.TargetVelocityRPM = speed;
 			}
 			else
 			{
-				rotor.LowerLimitRad = targetAngle;
-				rotor.UpperLimitRad = targetAngle - angleDiff + 1;
+				rotor.LowerLimitRad = rotor.Angle + angleDiff;
 				rotor.TargetVelocityRPM = -speed;
 			}
-		}
-
-		float NormalizeRad(float rad)
-		{
-			if (rad > pi) rad -= (2 * pi);
-			if (rad < -pi) rad += (2 * pi);
-			return rad;
 		}
 
 		float ToRad(float deg)
@@ -354,54 +318,11 @@ namespace IngameScript
 			return NormalizeRad(rad);
 		}
 
-		
-		void UpdateSchedule()
+		float NormalizeRad(float rad)
 		{
-			bool active = false;
-			foreach (ScheduleAction action in schedule)
-			{
-				if (action.Enabled)
-				{
-					action.Update(tic);
-					active = true;
-				}
-			}
-
-			if (tic > 108000 && !active) tic = 0;
-		}
-
-		public class ScheduleAction
-		{
-			public int DelayTics;
-			public bool Enabled = false;
-			
-			private Action _action;
-			public int _lastTic;
-
-			public ScheduleAction(Action action, int delayTics, int currentTic, bool enabled = false)
-			{
-				_action = action;
-				DelayTics = delayTics;
-				Enabled = enabled;
-				_lastTic = currentTic;
-			}
-
-			public void Update(int currentTic)
-			{
-				if (currentTic - _lastTic > DelayTics && Enabled)
-				{
-					_action.Invoke();
-					_lastTic = currentTic;
-					Enabled = false;
-				}
-			}
-
-			public void Enable(int currentTic, int delayTics = 0)
-			{
-				Enabled = true;
-				DelayTics = delayTics > 0 ? delayTics : DelayTics;
-				_lastTic = currentTic;
-			}
+			if (rad > pi) rad -= (2 * pi);
+			if (rad < -pi) rad += (2 * pi);
+			return rad;
 		}
 
 		//to here
